@@ -72,4 +72,33 @@ public class AuthController {
         return ResponseEntity.ok(
                 new LoginResponse(token, user.getEmail(), user.getRole().name()));
     }
+
+    @PostMapping("/create-admin")
+    public ResponseEntity<?> createAdmin(
+            @RequestBody RegisterRequest request,
+            @RequestHeader("Authorization") String authHeader) {
+
+        String token = authHeader.substring(7);
+        String email = jwtUtil.extractUsername(token);
+
+        User requester = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (requester.getRole() != Role.ADMIN) {
+            return ResponseEntity.status(403).body("Only admins can create admins!");
+        }
+
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            return ResponseEntity.badRequest().body("Email already exists!");
+        }
+
+        User admin = new User();
+        admin.setName(request.getName());
+        admin.setEmail(request.getEmail());
+        admin.setPassword(passwordEncoder.encode(request.getPassword()));
+        admin.setRole(Role.ADMIN);
+
+        userRepository.save(admin);
+        return ResponseEntity.ok("Admin created successfully!");
+    }
 }
