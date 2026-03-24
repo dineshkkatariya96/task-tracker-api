@@ -1,5 +1,6 @@
 package com.tasktracker.task_tracker_api.service;
 
+import com.tasktracker.task_tracker_api.config.StringConstants;
 import com.tasktracker.task_tracker_api.dto.TaskRequest;
 import com.tasktracker.task_tracker_api.dto.TaskResponse;
 import com.tasktracker.task_tracker_api.entity.Task;
@@ -25,12 +26,12 @@ public class TaskService {
 
     public TaskResponse createTask(TaskRequest request, String createdByEmail) {
         User createdBy = userRepository.findByEmail(createdByEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.USER_NOT_FOUND));
 
         User assignee = null;
         if (request.getAssigneeId() != null) {
             assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new RuntimeException("Assignee not found"));
+                    .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.ASSIGNEE_NOT_FOUND));
         }
 
         Task task = new Task();
@@ -47,7 +48,7 @@ public class TaskService {
 
     public TaskResponse updateTask(Long id, TaskRequest request) {
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
+                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.TASK_NOT_FOUND));
 
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
@@ -56,7 +57,7 @@ public class TaskService {
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new RuntimeException("Assignee not found"));
+                    .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.ASSIGNEE_NOT_FOUND));
             task.setAssignee(assignee);
         }
 
@@ -65,7 +66,7 @@ public class TaskService {
 
     public TaskResponse updateStatus(Long id, TaskStatus newStatus) {
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
+                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.TASK_NOT_FOUND));
         task.setStatus(newStatus);
         return mapToResponse(taskRepository.save(task));
     }
@@ -82,7 +83,7 @@ public class TaskService {
 
     public List<TaskResponse> getMyTasks(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.USER_NOT_FOUND));
         return taskRepository.findByAssignee(user)
                 .stream().map(this::mapToResponse)
                 .collect(Collectors.toList());

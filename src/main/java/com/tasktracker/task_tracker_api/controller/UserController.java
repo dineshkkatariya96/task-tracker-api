@@ -1,5 +1,6 @@
 package com.tasktracker.task_tracker_api.controller;
 
+import com.tasktracker.task_tracker_api.config.StringConstants;
 import com.tasktracker.task_tracker_api.dto.UserResponse;
 import com.tasktracker.task_tracker_api.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,6 @@ public class UserController {
 
     @GetMapping("/test")
     public ResponseEntity<String> test() {
-        return ResponseEntity.ok("UserController is working!");
+        return ResponseEntity.ok(StringConstants.HealthMessages.USER_CONTROLLER_WORKING);
     }
 }

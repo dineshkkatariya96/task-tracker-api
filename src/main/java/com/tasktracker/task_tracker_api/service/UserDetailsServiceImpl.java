@@ -1,5 +1,6 @@
 package com.tasktracker.task_tracker_api.service;
 
+import com.tasktracker.task_tracker_api.config.StringConstants;
 import com.tasktracker.task_tracker_api.entity.User;
 import com.tasktracker.task_tracker_api.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -24,7 +25,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
-                        new UsernameNotFoundException("User not found: " + email));
+                        new UsernameNotFoundException(StringConstants.ValidationMessages.USER_NOT_FOUND_WITH_EMAIL + email));
 
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),

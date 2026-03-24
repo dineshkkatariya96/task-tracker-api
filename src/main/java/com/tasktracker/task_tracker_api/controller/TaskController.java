@@ -1,5 +1,6 @@
 package com.tasktracker.task_tracker_api.controller;
 
+import com.tasktracker.task_tracker_api.config.StringConstants;
 import com.tasktracker.task_tracker_api.dto.TaskRequest;
 import com.tasktracker.task_tracker_api.dto.TaskResponse;
 import com.tasktracker.task_tracker_api.enums.TaskStatus;
@@ -47,7 +48,7 @@ public class TaskController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteTask(@PathVariable Long id) {
         taskService.deleteTask(id);
-        return ResponseEntity.ok("Task deleted successfully");
+        return ResponseEntity.ok(StringConstants.TaskMessages.TASK_DELETED_SUCCESSFULLY);
     }
 
     @GetMapping

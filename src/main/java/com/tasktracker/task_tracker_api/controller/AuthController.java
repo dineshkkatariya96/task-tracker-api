@@ -1,6 +1,7 @@
 package com.tasktracker.task_tracker_api.controller;
 
 import com.tasktracker.task_tracker_api.config.JwtUtil;
+import com.tasktracker.task_tracker_api.config.StringConstants;
 import com.tasktracker.task_tracker_api.dto.LoginRequest;
 import com.tasktracker.task_tracker_api.dto.LoginResponse;
 import com.tasktracker.task_tracker_api.dto.RegisterRequest;
@@ -41,7 +42,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Email already exists!");
+            return ResponseEntity.badRequest().body(StringConstants.AuthMessages.EMAIL_ALREADY_EXISTS);
         }
 
         User user = new User();
@@ -51,7 +52,7 @@ public class AuthController {
         user.setRole(Role.EMPLOYEE);
 
         userRepository.save(user);
-        return ResponseEntity.ok("User registered successfully");
+        return ResponseEntity.ok(StringConstants.AuthMessages.USER_REGISTERED_SUCCESSFULLY);
     }
 
     @PostMapping("/login")
@@ -82,14 +83,14 @@ public class AuthController {
         String email = jwtUtil.extractUsername(token);
 
         User requester = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.USER_NOT_FOUND));
 
         if (requester.getRole() != Role.ADMIN) {
-            return ResponseEntity.status(403).body("Only admins can create admins!");
+            return ResponseEntity.status(403).body(StringConstants.AuthMessages.ONLY_ADMINS_CAN_CREATE);
         }
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Email already exists!");
+            return ResponseEntity.badRequest().body(StringConstants.AuthMessages.EMAIL_ALREADY_EXISTS);
         }
 
         User admin = new User();
@@ -99,6 +100,6 @@ public class AuthController {
         admin.setRole(Role.ADMIN);
 
         userRepository.save(admin);
-        return ResponseEntity.ok("Admin created successfully!");
+        return ResponseEntity.ok(StringConstants.AuthMessages.ADMIN_CREATED_SUCCESSFULLY);
     }
 }
