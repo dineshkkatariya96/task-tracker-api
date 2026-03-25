@@ -1,6 +1,7 @@
 package com.tasktracker.task_tracker_api.controller;
 
 import com.tasktracker.task_tracker_api.config.StringConstants;
+import com.tasktracker.task_tracker_api.dto.TaskHistoryResponse;
 import com.tasktracker.task_tracker_api.dto.TaskRequest;
 import com.tasktracker.task_tracker_api.dto.TaskResponse;
 import com.tasktracker.task_tracker_api.enums.TaskStatus;
@@ -66,5 +67,15 @@ public class TaskController {
     @GetMapping("/overdue")
     public ResponseEntity<List<TaskResponse>> getOverdueTasks() {
         return ResponseEntity.ok(taskService.getOverdueTasks());
+    }
+
+    @GetMapping("/overdue/count")
+    public ResponseEntity<Long> getOverdueTaskCount() {
+        return ResponseEntity.ok(taskService.getOverdueTaskCount());
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<TaskHistoryResponse>> getTaskHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(taskService.getTaskHistory(id));
     }
 }

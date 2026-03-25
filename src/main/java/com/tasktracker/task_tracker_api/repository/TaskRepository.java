@@ -17,4 +17,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByStatusNotAndDueDateBefore(TaskStatus status, LocalDate date);
 
     List<Task> findByOverdueTrue();
+
+    long countByOverdueTrue();
 }
