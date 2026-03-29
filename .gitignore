@@ -31,3 +31,14 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Runtime logs ###
+logs/
+*.log
+
+### Local environment and secrets ###
+.env
+.env.*
+src/main/resources/application.properties
+src/main/resources/application-*.properties
+!src/main/resources/application-example.properties

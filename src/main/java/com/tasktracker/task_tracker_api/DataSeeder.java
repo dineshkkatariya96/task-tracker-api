@@ -34,9 +34,9 @@ public class DataSeeder implements CommandLineRunner {
             admin.setRole(Role.ADMIN);
 
             userRepository.save(admin);
-            log.info("Default admin created - email: admin@tasktracker.com | password: admin123");
+            log.info("Default admin created for email=admin@tasktracker.com");
         } else {
-            log.info("Admin already exists - skipping creation");
+            log.debug("Admin already exists - skipping creation");
         }
     }
 }

@@ -10,6 +10,8 @@ import com.tasktracker.task_tracker_api.enums.TaskHistoryAction;
 import com.tasktracker.task_tracker_api.enums.TaskStatus;
 import com.tasktracker.task_tracker_api.repository.TaskRepository;
 import com.tasktracker.task_tracker_api.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,8 @@ import java.util.stream.Collectors;
 @Service
 public class TaskService {
 
+    private static final Logger logger = LoggerFactory.getLogger(TaskService.class);
+
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final TaskHistoryService taskHistoryService;
@@ -35,11 +39,15 @@ public class TaskService {
 
     @Transactional
     public TaskResponse createTask(TaskRequest request, String createdByEmail) {
+        logger.info("Starting createTask for creator={} assigneeId={} priority={} dueDate={}",
+                maskEmail(createdByEmail), request.getAssigneeId(), request.getPriority(), request.getDueDate());
+        logger.debug("Fetching creator user record for email={}", maskEmail(createdByEmail));
         User createdBy = userRepository.findByEmail(createdByEmail)
                 .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.USER_NOT_FOUND));
 
         User assignee = null;
         if (request.getAssigneeId() != null) {
+            logger.debug("Fetching assignee user record for assigneeId={}", request.getAssigneeId());
             assignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.ASSIGNEE_NOT_FOUND));
         }
@@ -53,7 +61,9 @@ public class TaskService {
         task.setAssignee(assignee);
         task.setCreatedBy(createdBy);
 
+        logger.debug("Persisting task entity for creator={}", maskEmail(createdByEmail));
         Task savedTask = taskRepository.save(task);
+        logger.debug("Saving task creation history for taskId={}", savedTask.getId());
         taskHistoryService.saveHistory(
                 savedTask.getId(),
                 TaskHistoryAction.CREATED,
@@ -63,6 +73,7 @@ public class TaskService {
         );
 
         if (assignee != null) {
+            logger.debug("Saving task assignment history for taskId={} assigneeId={}", savedTask.getId(), assignee.getId());
             taskHistoryService.saveHistory(
                     savedTask.getId(),
                     TaskHistoryAction.ASSIGNED,
@@ -72,11 +83,15 @@ public class TaskService {
             );
         }
 
+        logger.info("Completed createTask for taskId={}", savedTask.getId());
         return mapToResponse(savedTask);
     }
 
     @Transactional
     public TaskResponse updateTask(Long id, TaskRequest request) {
+        logger.info("Starting updateTask for taskId={} assigneeId={} priority={} dueDate={}",
+                id, request.getAssigneeId(), request.getPriority(), request.getDueDate());
+        logger.debug("Fetching task for update taskId={}", id);
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.TASK_NOT_FOUND));
         User previousAssignee = task.getAssignee();
@@ -87,15 +102,18 @@ public class TaskService {
         task.setDueDate(request.getDueDate());
 
         if (request.getAssigneeId() != null) {
+            logger.debug("Fetching assignee for task update taskId={} assigneeId={}", id, request.getAssigneeId());
             User assignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.ASSIGNEE_NOT_FOUND));
             task.setAssignee(assignee);
         }
 
+        logger.debug("Persisting updated task entity for taskId={}", id);
         Task savedTask = taskRepository.save(task);
         savedTask = applyDerivedTaskState(savedTask, getCurrentUsername());
 
         if (request.getAssigneeId() != null && hasAssigneeChanged(previousAssignee, savedTask.getAssignee())) {
+            logger.debug("Saving assignment change history for taskId={}", savedTask.getId());
             taskHistoryService.saveHistory(
                     savedTask.getId(),
                     TaskHistoryAction.ASSIGNED,
@@ -105,11 +123,14 @@ public class TaskService {
             );
         }
 
+        logger.info("Completed updateTask for taskId={}", savedTask.getId());
         return mapToResponse(savedTask);
     }
 
     @Transactional
     public TaskResponse updateStatus(Long id, TaskStatus newStatus) {
+        logger.info("Starting updateStatus for taskId={} newStatus={}", id, newStatus);
+        logger.debug("Fetching task for status update taskId={}", id);
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.TASK_NOT_FOUND));
         TaskStatus oldStatus = task.getStatus();
@@ -119,9 +140,11 @@ public class TaskService {
             task.setOverdue(false);
         }
 
+        logger.debug("Persisting task status update for taskId={} oldStatus={} newStatus={}", id, oldStatus, newStatus);
         Task savedTask = taskRepository.save(task);
 
         if (oldStatus != newStatus) {
+            logger.debug("Saving status change history for taskId={}", savedTask.getId());
             taskHistoryService.saveHistory(
                     savedTask.getId(),
                     TaskHistoryAction.STATUS_CHANGED,
@@ -132,19 +155,24 @@ public class TaskService {
         }
 
         savedTask = applyDerivedTaskState(savedTask, getCurrentUsername());
+        logger.info("Completed updateStatus for taskId={} finalStatus={}", savedTask.getId(), savedTask.getStatus());
         return mapToResponse(savedTask);
     }
 
     public void deleteTask(Long id) {
+        logger.info("Starting deleteTask for taskId={}", id);
+        logger.debug("Deleting task record for taskId={}", id);
         taskRepository.deleteById(id);
+        logger.info("Completed deleteTask for taskId={}", id);
     }
 
     @Transactional
     public List<TaskResponse> getAllTasks() {
         syncOverdueTasks();
-        return taskRepository.findAll()
+        List<TaskResponse> taskResponses = taskRepository.findAll()
                 .stream().map(this::mapToResponse)
                 .collect(Collectors.toList());
+        return taskResponses;
     }
 
     @Transactional
@@ -152,17 +180,19 @@ public class TaskService {
         syncOverdueTasks();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.USER_NOT_FOUND));
-        return taskRepository.findByAssignee(user)
+        List<TaskResponse> taskResponses = taskRepository.findByAssignee(user)
                 .stream().map(this::mapToResponse)
                 .collect(Collectors.toList());
+        return taskResponses;
     }
 
     @Transactional
     public List<TaskResponse> getOverdueTasks() {
         syncOverdueTasks();
-        return taskRepository.findByOverdueTrue()
+        List<TaskResponse> taskResponses = taskRepository.findByOverdueTrue()
                 .stream().map(this::mapToResponse)
                 .collect(Collectors.toList());
+        return taskResponses;
     }
 
     @Transactional
@@ -217,6 +247,7 @@ public class TaskService {
         LocalDate today = LocalDate.now();
         List<Task> tasksToUpdate = new ArrayList<>();
 
+        logger.debug("Syncing overdue tasks for date={}", today);
         List<Task> overdueTasks = taskRepository.findByStatusNotAndDueDateBefore(TaskStatus.DONE, today);
         for (Task task : overdueTasks) {
             if (task.getStatus() != TaskStatus.OVERDUE || !task.isOverdue()) {
@@ -248,6 +279,7 @@ public class TaskService {
         }
 
         if (!tasksToUpdate.isEmpty()) {
+            logger.debug("Persisting overdue sync updates for taskCount={}", tasksToUpdate.size());
             taskRepository.saveAll(tasksToUpdate);
         }
     }
@@ -257,6 +289,7 @@ public class TaskService {
 
         if (task.getStatus() == TaskStatus.DONE) {
             if (task.isOverdue()) {
+                logger.debug("Clearing overdue flag for completed taskId={}", task.getId());
                 task.setOverdue(false);
                 updated = true;
             }
@@ -264,6 +297,7 @@ public class TaskService {
             TaskStatus previousStatus = task.getStatus();
 
             if (task.getStatus() != TaskStatus.OVERDUE) {
+                logger.debug("Marking taskId={} as overdue", task.getId());
                 task.setStatus(TaskStatus.OVERDUE);
                 updated = true;
                 taskHistoryService.saveHistory(
@@ -276,14 +310,32 @@ public class TaskService {
             }
 
             if (!task.isOverdue()) {
+                logger.debug("Setting overdue flag for taskId={}", task.getId());
                 task.setOverdue(true);
                 updated = true;
             }
         } else if (task.getStatus() != TaskStatus.OVERDUE && task.isOverdue()) {
+            logger.debug("Resetting overdue flag for taskId={}", task.getId());
             task.setOverdue(false);
             updated = true;
         }
 
+        if (updated) {
+            logger.debug("Persisting derived state changes for taskId={} performedBy={}", task.getId(), maskEmail(performedBy));
+        }
         return updated ? taskRepository.save(task) : task;
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return "N/A";
+        }
+
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 1) {
+            return "***";
+        }
+
+        return email.charAt(0) + "***" + email.substring(atIndex);
     }
 }
