@@ -4,6 +4,7 @@ import com.tasktracker.task_tracker_api.config.StringConstants;
 import com.tasktracker.task_tracker_api.dto.TaskHistoryResponse;
 import com.tasktracker.task_tracker_api.entity.TaskHistory;
 import com.tasktracker.task_tracker_api.enums.TaskHistoryAction;
+import com.tasktracker.task_tracker_api.exception.ResourceNotFoundException;
 import com.tasktracker.task_tracker_api.repository.TaskHistoryRepository;
 import com.tasktracker.task_tracker_api.repository.TaskRepository;
 import org.slf4j.Logger;
@@ -43,7 +44,7 @@ public class TaskHistoryService {
 
     public List<TaskHistoryResponse> getTaskHistory(Long taskId) {
         taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.TASK_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException(StringConstants.ValidationMessages.TASK_NOT_FOUND));
 
         return taskHistoryRepository.findByTaskIdOrderByTimestampDesc(taskId)
                 .stream()

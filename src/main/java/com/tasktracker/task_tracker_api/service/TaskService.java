@@ -8,6 +8,7 @@ import com.tasktracker.task_tracker_api.entity.Task;
 import com.tasktracker.task_tracker_api.entity.User;
 import com.tasktracker.task_tracker_api.enums.TaskHistoryAction;
 import com.tasktracker.task_tracker_api.enums.TaskStatus;
+import com.tasktracker.task_tracker_api.exception.ResourceNotFoundException;
 import com.tasktracker.task_tracker_api.repository.TaskRepository;
 import com.tasktracker.task_tracker_api.repository.UserRepository;
 import org.slf4j.Logger;
@@ -43,13 +44,13 @@ public class TaskService {
                 maskEmail(createdByEmail), request.getAssigneeId(), request.getPriority(), request.getDueDate());
         logger.debug("Fetching creator user record for email={}", maskEmail(createdByEmail));
         User createdBy = userRepository.findByEmail(createdByEmail)
-                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.USER_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException(StringConstants.ValidationMessages.USER_NOT_FOUND));
 
         User assignee = null;
         if (request.getAssigneeId() != null) {
             logger.debug("Fetching assignee user record for assigneeId={}", request.getAssigneeId());
             assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.ASSIGNEE_NOT_FOUND));
+                    .orElseThrow(() -> new ResourceNotFoundException(StringConstants.ValidationMessages.ASSIGNEE_NOT_FOUND));
         }
 
         Task task = new Task();
@@ -93,7 +94,7 @@ public class TaskService {
                 id, request.getAssigneeId(), request.getPriority(), request.getDueDate());
         logger.debug("Fetching task for update taskId={}", id);
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.TASK_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException(StringConstants.ValidationMessages.TASK_NOT_FOUND));
         User previousAssignee = task.getAssignee();
 
         task.setTitle(request.getTitle());
@@ -104,7 +105,7 @@ public class TaskService {
         if (request.getAssigneeId() != null) {
             logger.debug("Fetching assignee for task update taskId={} assigneeId={}", id, request.getAssigneeId());
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.ASSIGNEE_NOT_FOUND));
+                    .orElseThrow(() -> new ResourceNotFoundException(StringConstants.ValidationMessages.ASSIGNEE_NOT_FOUND));
             task.setAssignee(assignee);
         }
 
@@ -132,7 +133,7 @@ public class TaskService {
         logger.info("Starting updateStatus for taskId={} newStatus={}", id, newStatus);
         logger.debug("Fetching task for status update taskId={}", id);
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.TASK_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException(StringConstants.ValidationMessages.TASK_NOT_FOUND));
         TaskStatus oldStatus = task.getStatus();
         task.setStatus(newStatus);
 
@@ -161,6 +162,9 @@ public class TaskService {
 
     public void deleteTask(Long id) {
         logger.info("Starting deleteTask for taskId={}", id);
+        if (!taskRepository.existsById(id)) {
+            throw new ResourceNotFoundException(StringConstants.ValidationMessages.TASK_NOT_FOUND);
+        }
         logger.debug("Deleting task record for taskId={}", id);
         taskRepository.deleteById(id);
         logger.info("Completed deleteTask for taskId={}", id);
@@ -179,7 +183,7 @@ public class TaskService {
     public List<TaskResponse> getMyTasks(String email) {
         syncOverdueTasks();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.USER_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException(StringConstants.ValidationMessages.USER_NOT_FOUND));
         List<TaskResponse> taskResponses = taskRepository.findByAssignee(user)
                 .stream().map(this::mapToResponse)
                 .collect(Collectors.toList());

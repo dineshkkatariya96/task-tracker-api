@@ -12,6 +12,7 @@ public class StringConstants {
         public static final String USER_REGISTERED_SUCCESSFULLY = "User registered successfully";
         public static final String ADMIN_CREATED_SUCCESSFULLY = "Admin created successfully!";
         public static final String ONLY_ADMINS_CAN_CREATE = "Only admins can create admins!";
+        public static final String INVALID_AUTHORIZATION_HEADER = "Invalid Authorization header";
     }
 
     // Task Operation Messages

@@ -7,6 +7,9 @@ import com.tasktracker.task_tracker_api.dto.LoginResponse;
 import com.tasktracker.task_tracker_api.dto.RegisterRequest;
 import com.tasktracker.task_tracker_api.entity.User;
 import com.tasktracker.task_tracker_api.enums.Role;
+import com.tasktracker.task_tracker_api.exception.BadRequestException;
+import com.tasktracker.task_tracker_api.exception.ForbiddenException;
+import com.tasktracker.task_tracker_api.exception.ResourceNotFoundException;
 import com.tasktracker.task_tracker_api.repository.UserRepository;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -45,13 +48,13 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
         logger.info("POST /api/auth/register hit for email={}", maskEmail(request.getEmail()));
         logger.debug("Processing user registration with role={}", Role.EMPLOYEE);
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             logger.info("Registration rejected because email already exists for email={}", maskEmail(request.getEmail()));
-            return ResponseEntity.badRequest().body(StringConstants.AuthMessages.EMAIL_ALREADY_EXISTS);
+            throw new BadRequestException(StringConstants.AuthMessages.EMAIL_ALREADY_EXISTS);
         }
 
         User user = new User();
@@ -82,7 +85,8 @@ public class AuthController {
 
         String token = jwtUtil.generateToken(userDetails);
 
-        User user = userRepository.findByEmail(request.getEmail()).get();
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException(StringConstants.ValidationMessages.USER_NOT_FOUND));
 
         logger.info("Login completed successfully for email={}", maskEmail(request.getEmail()));
         return ResponseEntity.ok(
@@ -90,28 +94,32 @@ public class AuthController {
     }
 
     @PostMapping("/create-admin")
-    public ResponseEntity<?> createAdmin(
+    public ResponseEntity<String> createAdmin(
             @RequestBody RegisterRequest request,
             @RequestHeader("Authorization") String authHeader) {
         logger.info("POST /api/auth/create-admin hit for targetEmail={} authorizationHeaderPresent={}",
                 maskEmail(request.getEmail()), authHeader != null && !authHeader.isBlank());
 
+        if (authHeader == null || !authHeader.startsWith("Bearer ") || authHeader.length() <= 7) {
+            throw new BadRequestException(StringConstants.AuthMessages.INVALID_AUTHORIZATION_HEADER);
+        }
+
         String token = authHeader.substring(7);
         String email = jwtUtil.extractUsername(token);
 
         User requester = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException(StringConstants.ValidationMessages.USER_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException(StringConstants.ValidationMessages.USER_NOT_FOUND));
 
         logger.debug("Admin creation requested by requesterEmail={} requesterRole={}",
                 maskEmail(email), requester.getRole());
         if (requester.getRole() != Role.ADMIN) {
             logger.info("Admin creation rejected for requesterEmail={} due to insufficient privileges", maskEmail(email));
-            return ResponseEntity.status(403).body(StringConstants.AuthMessages.ONLY_ADMINS_CAN_CREATE);
+            throw new ForbiddenException(StringConstants.AuthMessages.ONLY_ADMINS_CAN_CREATE);
         }
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             logger.info("Admin creation rejected because email already exists for email={}", maskEmail(request.getEmail()));
-            return ResponseEntity.badRequest().body(StringConstants.AuthMessages.EMAIL_ALREADY_EXISTS);
+            throw new BadRequestException(StringConstants.AuthMessages.EMAIL_ALREADY_EXISTS);
         }
 
         User admin = new User();
